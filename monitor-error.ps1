@@ -1,5 +1,4 @@
 $logDir = "S:\www\IQM\Logfiles\DataConverterLog"
-$errorPattern = "ImageCopy Retry Over"
 $remoteComputer = "192.100.0.50"
 $remoteUser = "futec"
 
@@ -29,13 +28,17 @@ while ($true) {
         $lines = Get-Content $file.FullName
 
         foreach ($line in $lines) {
-            if ($line -match '^\[(?<date>\d{4}/\d{2}/\d{2})\],\[(?<time>\d{2}:\d{2}:\d{2})' -and $line -match $errorPattern) {
+            if ($line -match '^\[(?<date>\d{4}/\d{2}/\d{2})\],\[(?<time>\d{2}:\d{2}:\d{2}:\d{3})\].*DB ConnectErr!') {
                 try {
-                    $logTime = Get-Date "$($matches['date']) $($matches['time'])"
-                } catch {
-                    Write-Host "❌ Failed to parse datetime from log line: $line"
+                    $rawTime = $matches['time'] -replace ':(\d{3})$', '.$1'
+                    $logTime = [DateTime]::ParseExact("$($matches['date']) $rawTime", 'yyyy/MM/dd HH:mm:ss.fff', $null)
+                }
+                catch {
+                    Write-Host "Failed to parse datetime from log line: $line"
                     continue
                 }
+                Write-Host "Parsed datetime: $logTime"
+                
 
 
                 if ($logTime -ge $cutoffTime -and $logTime -gt $lastHandledTime) {
@@ -43,20 +46,18 @@ while ($true) {
                     Write-Host "[ACTION] Updating registry on $remoteComputer"
 
                     try {
-                        # Automatically load secure password from encrypted file
                         $encryptedPasswordPath = "$env:USERPROFILE\secure_password.txt"
                         if (-Not (Test-Path $encryptedPasswordPath)) {
-                            Write-Host "❌ Encrypted password file not found: $encryptedPasswordPath"
+                            Write-Host "Encrypted password file not found: $encryptedPasswordPath"
                             exit 1
                         }
 
                         $securePass = Get-Content -Path $encryptedPasswordPath | ConvertTo-SecureString
                         $cred = New-Object System.Management.Automation.PSCredential ($remoteUser, $securePass)
 
-
                         Invoke-Command -ComputerName $remoteComputer -Credential $cred -ScriptBlock {
                             Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" `
-                                             -Name "LocalAccountTokenFilterPolicy" -Value 1 -Type DWord -Force
+                                -Name "LocalAccountTokenFilterPolicy" -Value 1 -Type DWord -Force
                             Write-Output "Registry key updated on $env:COMPUTERNAME"
                         }
 
@@ -65,11 +66,12 @@ while ($true) {
                         break
                     }
                     catch {
-                        Write-Host "❌ Failed to update registry: $_"
+                        Write-Host "Failed to update registry: $_"
                     }
                 }
             }
         }
+
 
         if ($errorDetected) { break }
     }
