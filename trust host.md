@@ -1,18 +1,21 @@
-Add Remote IP to TrustedHosts
+### Add Remote IP to TrustedHosts
 
-Single machine
-
+#### Single machine
+```
 Set-Item WSMan:\localhost\Client\TrustedHosts -Value "192.100.0.50"
+```
 
-
-Multiple machines
-
+#### Multiple machines
+```
 Set-Item WSMan:\localhost\Client\TrustedHosts -Value "*"  # Trust all (⚠️ less secure)
+```
 
-Verify
-
+#### Verify
+```
 Get-Item WSMan:\localhost\Client\TrustedHosts
+```
 
-Test connection
-
+#### Test connection
+```
 Test-WSMan 192.100.0.50
+```
