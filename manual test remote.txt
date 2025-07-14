@@ -1,0 +1,19 @@
+# Set target remote machine and username
+$remoteComputer = "192.100.0.50"
+$remoteUser = "futec"
+
+# Load the stored secure password from file
+$securePassPath = "$env:USERPROFILE\secure_password.txt"
+
+if (-Not (Test-Path $securePassPath)) {
+    Write-Host "❌ Secure password file not found at $securePassPath"
+    return
+}
+
+$securePass = Get-Content $securePassPath | ConvertTo-SecureString
+$cred = New-Object System.Management.Automation.PSCredential ($remoteUser, $securePass)
+
+# Run test command on the remote machine
+Invoke-Command -ComputerName $remoteComputer -Credential $cred -ScriptBlock {
+    "✅ Connected to $env:COMPUTERNAME at $(Get-Date)"
+}
